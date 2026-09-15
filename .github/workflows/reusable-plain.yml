@@ -1,0 +1,22 @@
+name: reusable-plain.yml
+on:
+  workflow_call:
+    inputs:
+      case: { type: string, required: true }
+permissions: { contents: read, id-token: write }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          CASE: ${{ inputs.case }}
+        with:
+          script: |
+            const t = await core.getIDToken("sts.amazonaws.com");
+            const c = JSON.parse(Buffer.from(t.split(".")[1], "base64").toString());
+            const keep = ["iss","aud","sub","repository","repository_id","repository_owner",
+                          "repository_owner_id","workflow","workflow_ref","job_workflow_ref",
+                          "environment","ref","event_name"];
+            const rows = keep.map(k => `${k.padEnd(22)} ${c[k] === undefined ? "(ABSENT)" : c[k]}`).join("\n");
+            core.info(`\n##### CASE ${process.env.CASE} #####\n${rows}\n##### END #####`);

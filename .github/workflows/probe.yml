@@ -1,0 +1,44 @@
+name: probe
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: read, id-token: write }
+jobs:
+  a-direct-no-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env: { CASE: "A direct / no environment" }
+        with:
+          script: |
+            const t = await core.getIDToken("sts.amazonaws.com");
+            const c = JSON.parse(Buffer.from(t.split(".")[1], "base64").toString());
+            const keep = ["iss","aud","sub","repository","repository_id","repository_owner",
+                          "repository_owner_id","workflow","workflow_ref","job_workflow_ref",
+                          "environment","ref","event_name"];
+            const rows = keep.map(k => `${k.padEnd(22)} ${c[k] === undefined ? "(ABSENT)" : c[k]}`).join("\n");
+            core.info(`\n##### CASE ${process.env.CASE} #####\n${rows}\n##### END #####`);
+
+  b-direct-with-env:
+    environment: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env: { CASE: "B direct / environment=test" }
+        with:
+          script: |
+            const t = await core.getIDToken("sts.amazonaws.com");
+            const c = JSON.parse(Buffer.from(t.split(".")[1], "base64").toString());
+            const keep = ["iss","aud","sub","repository","repository_id","repository_owner",
+                          "repository_owner_id","workflow","workflow_ref","job_workflow_ref",
+                          "environment","ref","event_name"];
+            const rows = keep.map(k => `${k.padEnd(22)} ${c[k] === undefined ? "(ABSENT)" : c[k]}`).join("\n");
+            core.info(`\n##### CASE ${process.env.CASE} #####\n${rows}\n##### END #####`);
+
+  c-reusable-no-env:
+    uses: ./.github/workflows/reusable-plain.yml
+    with: { case: "C reusable / no environment" }
+
+  d-reusable-with-env:
+    uses: ./.github/workflows/reusable-env.yml
+    with: { case: "D reusable / environment=test" }
